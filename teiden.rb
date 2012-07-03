@@ -36,7 +36,7 @@ def notifymsg(msg)
   bool =  "計画停電の有無 : " << is_impl.to_s << "\n"
   rank = "グループ内停電順位 : " << h["order"].to_s << "\n"
   infosource =  "情報源 : " << info << "\n"
-  notify_source = group << length << rank << infosource
+  notify_source = date << group << bool << length << rank << infosource
   return notify_source
 end
 
