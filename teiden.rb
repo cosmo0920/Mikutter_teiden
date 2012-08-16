@@ -4,6 +4,7 @@ require "open-uri"
 require "rubygems"
 require "json"
 require "time"
+require "date"
 
 def notifymsg(msg)
   #jsonパーサーを使う
@@ -43,28 +44,34 @@ end
 Plugin.create :teiden_kansai do
   src = ''
   group = (UserConfig[:teiden_area]|| []).select{|m|!m.empty?}
-  sleeptime = (UserConfig[:retrive_interval_api_access].to_i || 1*60 ).to_i * 60 
+  sleeptime = (UserConfig[:retrive_interval_api_access].to_i || 1*60 ).to_i * 60
+  today = Date.today
+  weekday = today.wday
   if group then
     Thread.new {
       while true
-        begin
-          open("http://kteiden.chibiegg.net/api/kteiden.json?&group=#{group[0]}"){|file|
-            src = file.read.gsub(/^\[/,"").gsub(/\]$/,"") #前後についている[]を取り払う
-          }
-          notify_source = notifymsg(src)
-          
-          bg_system("notify-send","関西停電情報",
-                    "#{notify_source}")
-        rescue JSON::ParserError
-          print "json parse error."
-          bg_system("notify-send","notice!", 
-                    "有効なエリア情報がありません。\n設定をして再起動してください")
-        rescue OpenURI::HTTPError
-          print "Http bad request."
-          bg_system("notify-send","notice!", 
-                    "APIへの接続が確立できませんでした。")
+        if  (weekday.to_i == 0 || weekday.to_i == 6 ) then
+          bg_system("notify-send","notice!","通知が有効なのは平日だけです")
+        else
+          begin
+            open("http://kteiden.chibiegg.net/api/kteiden.json?&group=#{group[0]}"){|file|
+              src = file.read.gsub(/^\[/,"").gsub(/\]$/,"") #前後についている[]を取り払う
+            }
+            notify_source = notifymsg(src)
+            
+            bg_system("notify-send","関西停電情報",
+                      "#{notify_source}")
+          rescue JSON::ParserError
+            print "json parse error."
+            bg_system("notify-send","notice!", 
+                      "有効なエリア情報がありません。\n設定をして再起動してください")
+          rescue OpenURI::HTTPError
+            print "Http bad request."
+            bg_system("notify-send","notice!", 
+                      "APIへの接続が確立できませんでした。")
+          end
         end
-        sleep sleeptime
+          sleep sleeptime
       end
     }
   else
@@ -75,7 +82,7 @@ Plugin.create :teiden_kansai do
   settings "関西電力停電情報" do
     settings "エリア情報(ex.4-F etc.)と通知間隔(単位：分)を入力してください" do
       multi "エリア(一番上の設定が有効)", :teiden_area
-      adjustment('通知間隔', :retrive_interval_api_access, 1, 24*60)
+      adjustment('通知間隔(分)', :retrive_interval_api_access, 1, 24*60)
     end
   end
 
